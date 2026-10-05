@@ -100,12 +100,21 @@ def test_bug_reproduction_sort_order_depends_on_input_order():
 
     This is the bug from issue #25: sorting silently misbehaves because a NaN
     is in the key, so identical data can come out in different layer orders.
+
+    Note on the assertion: the exact number of different orders that come out
+    is a CPython implementation detail and can differ between Python versions
+    and platforms, so this only asserts the meaningful part -- that the unfixed
+    sort does **not** reliably produce the correct order. That holds whichever
+    order the interpreter happens to pick, which keeps the test stable while
+    still failing on the unfixed code.
     """
     parts = _parts_with_one_nan()
+    correct = ("face", "body", "bg", "hair")
     unstable = _orders_with(parts, key=lambda p: p["depth_median"])
-    assert len(unstable) > 1, (
-        "expected the unfixed sort to be order-dependent, got a single order: "
-        f"{unstable}"
+    assert unstable != {correct}, (
+        "the unfixed sort produced the correct order for every input order -- "
+        "either the interpreter changed or the bug moved; check manually. "
+        f"got: {sorted(unstable)}"
     )
 
 
@@ -131,12 +140,16 @@ def test_hair_split_picks_front_and_back_correctly():
     """
     split = [{"name": "back", "depth_median": 0.7},
              {"name": "front", "depth_median": float("nan")}]
+    correct = ("back", "front")
     before = {tuple(p["name"] for p in sorted(perm, key=lambda p: p["depth_median"]))
               for perm in itertools.permutations(split)}
     after = {tuple(p["name"] for p in sorted(perm, key=depth_sort_key))
              for perm in itertools.permutations(split)}
-    assert len(before) > 1, "the unfixed hair split should be order-dependent"
-    assert after == {("back", "front")}, after
+    assert before != {correct}, (
+        "the unfixed hair split gave the correct front/back for every input "
+        f"order, which should not happen; got {sorted(before)}"
+    )
+    assert after == {correct}, after
 
 
 def test_depth_sort_key_edge_cases():
